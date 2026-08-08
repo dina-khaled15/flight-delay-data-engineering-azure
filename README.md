@@ -1,73 +1,76 @@
-
-````markdown
-# Flight Delay Analysis & Analytics Platform
+# Flight Delay Data Engineering & Analytics Platform
 
 ## 1. Project Overview
 
-This project is an end-to-end data engineering and analytics solution designed to analyze historical flight data from 2009 to 2018.
+This project is an end-to-end data engineering solution for processing and preparing historical flight data for analytical use.
 
-The project processes raw flight data through a Medallion Architecture using Azure Data Lake Storage Gen2 and Azure Synapse Analytics. PySpark is used for data cleaning, transformation, feature engineering, and dimensional modeling.
+The project uses a Medallion Architecture to transform raw flight data into a clean, analysis-ready Gold layer and then organize the data into a Star Schema dimensional model.
 
-The final solution transforms raw flight records into an analytical Gold layer and a Star Schema data model that can be consumed by Power BI for business intelligence and reporting.
+The pipeline covers:
 
-The project focuses on understanding flight delays, evaluating airline and route performance, analyzing airport congestion, identifying time-based delay patterns, and investigating the root causes of delays.
+- Raw data ingestion
+- Data cleaning and quality control
+- Data standardization
+- Flight classification
+- Time-based feature engineering
+- Delay classification
+- Delay severity classification
+- Route classification
+- Delay cause analysis
+- Dimensional modeling
+- Fact and dimension table creation
+
+The historical flight dataset covers the period from 2009 to 2018.
 
 ---
 
-## 2. Business Objectives
+## 2. Project Objectives
+
+The project is designed to support the following analytical objectives:
 
 ### 2.1 Flight Delay Analysis
 
-Analyze historical flight data to identify delay patterns and trends.
+Analyze historical flight data to identify delay patterns using:
 
-Key metrics include:
-
-- Average departure delay
-- Average arrival delay
+- Departure delay
+- Arrival delay
 - Delay frequency
-- Delay rate
+- Delay classification
 - Delay severity
-- Distribution of delays across airlines, routes, airports, and time periods
+- Time-based delay features
 
 ### 2.2 Airline Performance Evaluation
 
-Evaluate airline punctuality and operational performance using On-Time Performance (OTP).
+Evaluate airline punctuality and operational performance using:
 
-The analysis can compare airlines based on:
-
-- On-time percentage
-- Delay rate
-- Average arrival delay
-- Number of delayed flights
+- Airline
+- Arrival delay
+- Delay status
+- On-Time Performance (OTP)
 
 ### 2.3 Route Performance Analysis
 
-Evaluate the performance and reliability of flight routes.
+Analyze route-level performance using:
 
-The analysis focuses on:
-
-- Delay rate by route
-- Average delay by route
-- Route reliability
-- Flight distance
-- Flight duration
-- Short-, medium-, and long-haul routes
+- Origin airport
+- Destination airport
+- Route
+- Distance
+- Haul type
+- Departure and arrival delays
 
 ### 2.4 Airport Congestion Analysis
 
-Analyze airport traffic and delay impact.
+Prepare airport-level data for analyzing:
 
-The analysis can identify:
-
-- High-traffic airports
-- Number of flights per airport
-- Airport delay rates
-- Average airport delay
-- Airports associated with high levels of delays
+- Flight volume
+- Airport activity
+- Delay frequency
+- Arrival and departure delays
 
 ### 2.5 Time-Based Delay Pattern Analysis
 
-Analyze how delays change over time using:
+Analyze delay behavior across:
 
 - Year
 - Month
@@ -75,105 +78,81 @@ Analyze how delays change over time using:
 - Day of week
 - Departure hour
 - Departure time bucket
-- Weekend vs weekday
-
-This helps identify peak delay periods and recurring temporal patterns.
+- Weekend and weekday
 
 ### 2.6 Root Cause Analysis
 
-Identify the major operational causes of flight delays.
+Analyze the major categories of flight delays:
 
-The analysis considers:
-
-- Carrier delays
-- Weather delays
-- NAS delays
-- Security delays
-- Late aircraft delays
+- Carrier
+- Weather
+- NAS
+- Security
+- Late Aircraft
 
 ---
 
-## 3. Data Architecture
+# 3. Technology Stack
 
-The project follows the Medallion Architecture:
+- Python
+- PySpark
+- Apache Spark
+- Azure Synapse Analytics
+- Azure Data Lake Storage Gen2
+- CSV
+- Parquet
+- GitHub
+
+---
+
+# 4. Data Architecture
+
+The project follows a Medallion Architecture.
 
 ```text
 Raw Flight Data
        |
        v
-+----------------+
-| Bronze Layer   |
-| Raw Data       |
-+----------------+
++------------------+
+| Bronze Layer     |
+| Raw CSV Data     |
++------------------+
        |
+       | Cleaning
+       | Standardization
        v
-+----------------+
-| Silver Layer   |
-| Cleaned Data   |
-+----------------+
++------------------+
+| Silver Layer     |
+| Operated Flights |
++------------------+
        |
+       | Feature Engineering
+       | Business Transformations
        v
-+----------------+
-| Gold Layer     |
-| Analytical     |
-| Data           |
-+----------------+
++------------------+
+| Gold Layer       |
+| Analytical Data  |
++------------------+
        |
+       | Dimensional Modeling
        v
-+----------------+
-| Star Schema    |
-| Data Model     |
-+----------------+
-       |
-       v
-+----------------+
-| Power BI       |
-| Analytics      |
-+----------------+
-````
-
----
-
-## 4. Technologies Used
-
-* Python
-* PySpark
-* Apache Spark
-* Azure Synapse Analytics
-* Azure Data Lake Storage Gen2
-* Parquet
-* CSV
-* Power BI
-* GitHub
++------------------+
+| Star Schema      |
+| Fact + Dimensions|
++------------------+
+```
 
 ---
 
 # 5. Bronze Layer
 
-The Bronze layer stores the raw flight data without applying business transformations.
+The Bronze layer contains the raw historical flight data stored in Azure Data Lake Storage Gen2.
 
-The source dataset contains historical flight records from 2009 to 2018.
-
-### Main responsibilities
-
-* Store raw source data
-* Preserve the original dataset
-* Provide input for downstream processing
-* Maintain a reliable source layer for data transformation
-
----
-
-# 6. Silver Layer
-
-The Silver layer contains cleaned and standardized flight data.
-
-The main purpose of this layer is to improve data quality and prepare the data for analytical processing.
-
-## 6.1 Loading Raw Data
-
-The raw CSV files are loaded from the Bronze layer using PySpark.
+The raw data is loaded from CSV files using PySpark.
 
 ```python
+RAW_PATH = "abfss://bronze@flightdatalakegen2.dfs.core.windows.net/*.csv"
+
 df_raw = spark.read \
     .option("header", "true") \
     .option("nullValue", "") \
@@ -181,13 +160,36 @@ df_raw = spark.read \
     .csv(RAW_PATH)
 ```
 
-The data is loaded with headers and permissive parsing to handle invalid records without stopping the entire ingestion process.
+The Bronze layer is responsible for preserving the raw source data before applying analytical transformations.
 
 ---
 
-## 6.2 Removing Unnecessary Columns
+# 6. Silver Layer
 
-The column `Unnamed: 27` was removed because it does not contain useful business information and represents a noisy column in the source dataset.
+The Silver layer contains cleaned and standardized operated-flight data.
+
+The main transformations performed in the Silver layer are:
+
+- Removing unnecessary columns
+- Removing duplicate records
+- Separating cancelled and operated flights
+- Cleaning invalid string values
+- Casting numeric columns
+- Handling missing values
+- Removing records with missing essential identifiers
+- Standardizing date and categorical fields
+- Controlling extreme delay values
+- Handling invalid air-time values
+- Creating the route
+- Creating the year partition column
+
+---
+
+## 6.1 Removing Unnecessary Columns
+
+The source dataset contained an unnecessary column called `Unnamed: 27`.
+
+It was removed because it does not provide useful analytical information.
 
 ```python
 df = df_raw.drop("Unnamed: 27")
@@ -195,18 +197,9 @@ df = df_raw.drop("Unnamed: 27")
 
 ---
 
-## 6.3 Removing Duplicate Flights
+## 6.2 Removing Duplicate Flights
 
-Duplicate records were removed using a set of business keys:
-
-```text
-FL_DATE
-OP_CARRIER
-OP_CARRIER_FL_NUM
-ORIGIN
-DEST
-CRS_DEP_TIME
-```
+Duplicate records were removed using business-related flight attributes:
 
 ```python
 df = df.dropDuplicates([
@@ -219,13 +212,13 @@ df = df.dropDuplicates([
 ])
 ```
 
-This prevents the same flight from being counted multiple times during analysis.
+These columns help identify the same flight occurrence and prevent duplicated flights from affecting downstream analysis.
 
 ---
 
-## 6.4 Separating Operated and Cancelled Flights
+## 6.3 Separating Operated and Cancelled Flights
 
-The dataset was divided into operated and cancelled flights.
+The dataset was divided into two groups:
 
 ```python
 df_cancelled = df.filter(F.col("CANCELLED") == 1)
@@ -233,125 +226,183 @@ df_cancelled = df.filter(F.col("CANCELLED") == 1)
 df_operated = df.filter(F.col("CANCELLED") == 0)
 ```
 
-The operated-flight dataset is used for the main delay analysis because operated flights contain actual departure and arrival performance information.
+The operated flights are used as the main input for delay analysis because they contain actual departure and arrival information.
 
-Cancelled flights are kept separately for potential cancellation analysis.
+Cancelled flights are kept separately for potential cancellation-related analysis.
 
 ---
 
-## 6.5 Handling Invalid Values
+## 6.4 Cleaning Invalid Values
 
-Invalid values such as:
+Invalid string values were replaced with null values.
 
-```text
-undefined
-NA
-null
-NULL
-empty strings
+```python
+bad_values = [
+    "undefined",
+    "NA",
+    "null",
+    "NULL",
+    "",
+    " "
+]
+
+df_operated = df_operated.replace(bad_values, None)
 ```
 
-are treated as missing values.
-
-This prevents invalid text values from affecting numerical calculations and analytical results.
+The transformation improves data quality by preventing invalid textual values from being treated as meaningful data.
 
 ---
 
-## 6.6 Numeric Type Conversion
+## 6.5 Numeric Columns
 
-The following delay-related columns are converted to numeric types:
+The following delay-related columns were converted to numeric values:
 
-```text
-DEP_DELAY
-ARR_DELAY
-CARRIER_DELAY
-WEATHER_DELAY
-NAS_DELAY
-SECURITY_DELAY
-LATE_AIRCRAFT_DELAY
+```python
+numeric_cols = [
+    "DEP_DELAY",
+    "ARR_DELAY",
+    "CARRIER_DELAY",
+    "WEATHER_DELAY",
+    "NAS_DELAY",
+    "SECURITY_DELAY",
+    "LATE_AIRCRAFT_DELAY"
+]
 ```
 
-This allows numerical calculations such as averages, totals, and comparisons.
+They were cast to `double`:
 
----
-
-## 6.7 Handling Missing Delay Values
-
-Missing delay values are replaced with zero where appropriate for delay calculations.
-
-This allows delay metrics and delay-cause calculations to be performed consistently.
-
----
-
-## 6.8 Removing Records with Missing Identifiers
-
-Records missing essential fields are removed:
-
-```text
-FL_DATE
-OP_CARRIER
-ORIGIN
-DEST
+```python
+for c in numeric_cols:
+    df = df.withColumn(
+        c,
+        F.col(c).cast("double")
+    )
 ```
 
-These fields are required because they identify the flight, airline, origin, destination, and date.
+---
+
+## 6.6 Missing Delay Values
+
+Missing values in delay-related columns were replaced with zero:
+
+```python
+df = df.fillna({
+    "DEP_DELAY": 0,
+    "ARR_DELAY": 0,
+    "CARRIER_DELAY": 0,
+    "WEATHER_DELAY": 0,
+    "NAS_DELAY": 0,
+    "SECURITY_DELAY": 0,
+    "LATE_AIRCRAFT_DELAY": 0
+})
+```
+
+This allows delay calculations to be performed consistently.
 
 ---
 
-## 6.9 Standardizing Data Formats
+## 6.7 Removing Records with Missing Identifiers
 
-The following transformations are applied:
+Records missing essential flight identifiers were removed:
 
-* Convert `FL_DATE` to a date type
-* Convert `CANCELLED` to integer
-* Convert `DIVERTED` to integer
-* Convert carrier codes to uppercase
-* Convert airport codes to uppercase
-* Remove unnecessary whitespace
+```python
+df_operated = df_operated.dropna(
+    subset=[
+        "FL_DATE",
+        "OP_CARRIER",
+        "ORIGIN",
+        "DEST"
+    ]
+)
+```
 
-This improves consistency across the dataset.
+These fields are required for flight, airline, airport, and route analysis.
 
 ---
 
-## 6.10 Handling Extreme Delay Values
+## 6.8 Standardizing Data Types and Formats
 
-Extremely large delay values are capped at 1,440 minutes.
+The flight date was converted to a date type.
+
+Categorical fields were trimmed and converted to uppercase.
+
+```python
+df_operated = df_operated \
+    .withColumn(
+        "FL_DATE",
+        F.to_date("FL_DATE", "yyyy-MM-dd")
+    ) \
+    .withColumn(
+        "CANCELLED",
+        F.col("CANCELLED").cast("int")
+    ) \
+    .withColumn(
+        "DIVERTED",
+        F.col("DIVERTED").cast("int")
+    ) \
+    .withColumn(
+        "OP_CARRIER",
+        F.upper(F.trim("OP_CARRIER"))
+    ) \
+    .withColumn(
+        "ORIGIN",
+        F.upper(F.trim("ORIGIN"))
+    ) \
+    .withColumn(
+        "DEST",
+        F.upper(F.trim("DEST"))
+    )
+```
+
+This ensures consistency when the fields are later used for grouping, joins, and dimensional modeling.
+
+---
+
+## 6.9 Delay Data Quality Control
+
+Extremely large delay values were capped at 1440 minutes:
 
 ```python
 df_operated = df_operated \
     .withColumn(
         "ARR_DELAY",
-        F.when(F.col("ARR_DELAY") > 1440, 1440)
-         .otherwise(F.col("ARR_DELAY"))
+        F.when(
+            F.col("ARR_DELAY") > 1440,
+            1440
+        ).otherwise(F.col("ARR_DELAY"))
     ) \
     .withColumn(
         "DEP_DELAY",
-        F.when(F.col("DEP_DELAY") > 1440, 1440)
-         .otherwise(F.col("DEP_DELAY"))
+        F.when(
+            F.col("DEP_DELAY") > 1440,
+            1440
+        ).otherwise(F.col("DEP_DELAY"))
     )
 ```
 
-This is a data quality control step used to reduce the impact of extreme outliers.
+This limits extreme values that may negatively affect analytical calculations.
 
 ---
 
-## 6.11 Handling Invalid Air Time
+## 6.10 Handling Invalid Air Time
 
-Negative air-time values are invalid and therefore converted to NULL.
+Negative air-time values were considered invalid and converted to null:
 
 ```python
 df_operated = df_operated.withColumn(
     "AIR_TIME",
-    F.when(F.col("AIR_TIME") < 0, None)
-     .otherwise(F.col("AIR_TIME"))
+    F.when(
+        F.col("AIR_TIME") < 0,
+        None
+    ).otherwise(F.col("AIR_TIME"))
 )
 ```
 
 ---
 
-## 6.12 Creating the Route Feature
+## 6.11 Creating the Route
 
-A route identifier is created by combining the origin and destination airports.
+A route was created by combining the origin and destination airports:
 
 ```python
 df_operated = df_operated.withColumn(
@@ -364,17 +415,15 @@ Example:
 
 ```text
 JFK-LAX
-ATL-ORD
-LAX-SFO
 ```
 
-The `ROUTE` feature is used for route performance and delay analysis.
+The `ROUTE` column enables route-level analysis.
 
 ---
 
-## 6.13 Creating the Year Partition
+## 6.12 Creating the Year Partition
 
-The year is extracted from the flight date.
+The year was extracted from the flight date:
 
 ```python
 df_operated = df_operated.withColumn(
@@ -383,59 +432,117 @@ df_operated = df_operated.withColumn(
 )
 ```
 
-The data is partitioned by `YEAR` when written to the Silver layer.
+The Silver data was then stored using year partitioning:
 
-Partitioning improves data organization and can improve query performance when filtering by year.
+```python
+df_operated.write \
+    .mode("overwrite") \
+    .option("header", "true") \
+    .partitionBy("YEAR") \
+    .csv(
+        SILVER_PATH + "operated/"
+    )
+```
+
+Partitioning by year helps organize the historical dataset and supports efficient access to data by year.
 
 ---
 
 # 7. Gold Layer
 
-The Gold layer contains analysis-ready flight data.
+The Gold layer transforms the cleaned Silver data into an analysis-ready dataset.
 
-The Silver operated-flight data is transformed into a business-oriented analytical dataset.
+Input:
+
+```text
+Silver/operated
+```
+
+Output:
+
+```text
+Gold/flight_facts
+```
+
+The Gold layer adds analytical features required for flight delay analysis.
 
 ---
 
-## 7.1 Time Features
+# 8. Time-Based Features
 
-The following features are created:
+The following columns are derived from `FL_DATE`:
 
-```text
-YEAR
-MONTH
-DAY
-DAY_OF_WEEK
+```python
+df = (df
+    .withColumn("YEAR", F.year("FL_DATE"))
+    .withColumn("MONTH", F.month("FL_DATE"))
+    .withColumn("DAY", F.dayofmonth("FL_DATE"))
+    .withColumn("DAY_OF_WEEK", F.dayofweek("FL_DATE"))
+)
 ```
 
-These columns allow the project to analyze delay patterns across different time periods.
+### YEAR
 
-For example:
+The year of the flight.
 
-* `YEAR` → yearly delay trends
-* `MONTH` → seasonal patterns
-* `DAY` → daily analysis
-* `DAY_OF_WEEK` → weekday/weekend patterns
+Used for yearly delay trends.
+
+### MONTH
+
+The month of the flight.
+
+Used for identifying seasonal patterns.
+
+### DAY
+
+The day of the month.
+
+Used for daily-level analysis.
+
+### DAY_OF_WEEK
+
+The day of the week.
+
+Used to compare delay patterns across different days.
 
 ---
 
-## 7.2 Departure Time Features
+# 9. Departure Time Features
 
-The scheduled departure time is transformed into:
+The scheduled departure time is transformed into an hour:
 
-```text
-DEP_HOUR
+```python
+df = df.withColumn(
+    "DEP_HOUR",
+    (F.col("CRS_DEP_TIME") / 100).cast(IntegerType())
+)
 ```
 
-This allows analysis by departure hour.
+A departure time bucket is then created:
 
-A second feature is created:
-
-```text
-DEP_TIME_BUCKET
+```python
+df = df.withColumn(
+    "DEP_TIME_BUCKET",
+    F.when(
+        (F.col("DEP_HOUR") >= 6) &
+        (F.col("DEP_HOUR") < 12),
+        "Morning"
+    )
+    .when(
+        (F.col("DEP_HOUR") >= 12) &
+        (F.col("DEP_HOUR") < 18),
+        "Afternoon"
+    )
+    .when(
+        (F.col("DEP_HOUR") >= 18) &
+        (F.col("DEP_HOUR") < 24),
+        "Evening"
+    )
+    .otherwise("Night")
+)
 ```
 
-with the following categories:
+The resulting categories are:
 
 ```text
 Morning
@@ -444,55 +551,90 @@ Evening
 Night
 ```
 
-This helps identify periods during the day where delays are more frequent.
+These features support time-based delay analysis.
 
 ---
 
-# 8. Delay Classification
+# 10. Delay Classification
 
-## 8.1 IS_DELAYED
+## 10.1 IS_DELAYED
 
-A flight is considered delayed when:
+A flight is classified as delayed when arrival delay is at least 15 minutes.
 
-```text
-ARR_DELAY >= 15 minutes
+```python
+df = df.withColumn(
+    "IS_DELAYED",
+    F.when(
+        F.col("ARR_DELAY") >= 15,
+        1
+    ).otherwise(0)
+)
 ```
 
-The resulting column contains:
+Meaning:
 
 ```text
 1 = Delayed
 0 = Not Delayed
 ```
 
-This column is used to calculate delay rates and identify delayed flights.
+This field can be used to calculate delay frequency and delay rate.
 
 ---
 
-## 8.2 OTP_FLAG
+## 10.2 OTP_FLAG
 
-The On-Time Performance flag is calculated using:
+The On-Time Performance flag is created using arrival delay:
 
-```text
-ARR_DELAY <= 15 minutes
+```python
+df = df.withColumn(
+    "OTP_FLAG",
+    F.when(
+        F.col("ARR_DELAY") <= 15,
+        1
+    ).otherwise(0)
+)
 ```
 
-The resulting column contains:
+Meaning:
 
 ```text
 1 = On Time
 0 = Delayed
 ```
 
-This metric is used to evaluate airline and route punctuality.
+This feature supports airline and route punctuality analysis.
 
 ---
 
-# 9. Delay Severity
+# 11. Delay Severity
 
-The `DELAY_SEVERITY` feature categorizes flights according to arrival delay.
+The `DELAY_SEVERITY` column categorizes flights according to arrival delay:
 
-Categories include:
+```python
+df = df.withColumn(
+    "DELAY_SEVERITY",
+    F.when(
+        F.col("ARR_DELAY") < 0,
+        "Early"
+    )
+    .when(
+        F.col("ARR_DELAY") < 15,
+        "On Time"
+    )
+    .when(
+        F.col("ARR_DELAY") < 60,
+        "Minor"
+    )
+    .when(
+        F.col("ARR_DELAY") < 180,
+        "Moderate"
+    )
+    .otherwise("Severe")
+)
+```
+
+Categories:
 
 ```text
 Early
@@ -502,21 +644,21 @@ Moderate
 Severe
 ```
 
-This allows the analysis to distinguish between small delays and severe operational disruptions.
+This provides a categorical representation of delay intensity.
 
 ---
 
-# 10. Route and Distance Features
+# 12. Route and Distance Classification
 
-## 10.1 ROUTE
+## 12.1 ROUTE
 
 The route is created using:
 
-```text
-ORIGIN + DEST
+```python
+ROUTE = ORIGIN + DEST
 ```
 
-Example:
+For example:
 
 ```text
 JFK-LAX
@@ -526,9 +668,26 @@ The route is used for route-level performance analysis.
 
 ---
 
-## 10.2 HAUL_TYPE
+## 12.2 HAUL_TYPE
 
-Flight distance is categorized into:
+Flight distance is classified into three categories:
+
+```python
+df = df.withColumn(
+    "HAUL_TYPE",
+    F.when(
+        F.col("DISTANCE") < 500,
+        "Short"
+    )
+    .when(
+        F.col("DISTANCE") < 1500,
+        "Medium"
+    )
+    .otherwise("Long")
+)
+```
+
+Categories:
 
 ```text
 Short
@@ -540,9 +699,9 @@ This enables comparison of delay behavior across different flight distances.
 
 ---
 
-# 11. Delay Cause Analysis
+# 13. Delay Cause Analysis
 
-The original dataset contains individual delay components:
+The dataset contains five delay-cause components:
 
 ```text
 CARRIER_DELAY
@@ -552,21 +711,79 @@ SECURITY_DELAY
 LATE_AIRCRAFT_DELAY
 ```
 
-These columns represent the amount of delay attributed to different operational causes.
+These represent delay contributions associated with different operational causes.
 
 ---
 
-## 11.1 MAX_DELAY
+## 13.1 MAX_DELAY
 
-The maximum delay contribution is calculated across all delay-cause columns.
+The largest delay component is calculated using:
 
-This allows the project to identify the dominant cause of delay for each flight.
+```python
+DELAY_COLS = [
+    "CARRIER_DELAY",
+    "WEATHER_DELAY",
+    "NAS_DELAY",
+    "SECURITY_DELAY",
+    "LATE_AIRCRAFT_DELAY"
+]
+
+df = df.withColumn(
+    "MAX_DELAY",
+    F.greatest(
+        *[
+            F.coalesce(F.col(c), F.lit(0))
+            for c in DELAY_COLS
+        ]
+    )
+)
+```
+
+`MAX_DELAY` represents the largest delay contribution among the available delay-cause columns for a flight.
 
 ---
 
-## 11.2 DELAY_CAUSE
+# 14. DELAY_CAUSE
 
-The dominant delay cause is classified as:
+The dominant delay cause is classified using the largest delay contribution.
+
+```python
+df = df.withColumn(
+    "DELAY_CAUSE",
+    F.when(
+        F.col("IS_DELAYED") == 0,
+        "No Delay"
+    )
+    .when(
+        F.coalesce(F.col("CARRIER_DELAY"), F.lit(0))
+        == F.col("MAX_DELAY"),
+        "Carrier"
+    )
+    .when(
+        F.coalesce(F.col("WEATHER_DELAY"), F.lit(0))
+        == F.col("MAX_DELAY"),
+        "Weather"
+    )
+    .when(
+        F.coalesce(F.col("NAS_DELAY"), F.lit(0))
+        == F.col("MAX_DELAY"),
+        "NAS"
+    )
+    .when(
+        F.coalesce(F.col("SECURITY_DELAY"), F.lit(0))
+        == F.col("MAX_DELAY"),
+        "Security"
+    )
+    .when(
+        F.coalesce(F.col("LATE_AIRCRAFT_DELAY"), F.lit(0))
+        == F.col("MAX_DELAY"),
+        "Late Aircraft"
+    )
+    .otherwise("Unknown")
+)
+```
+
+Possible values:
 
 ```text
 No Delay
@@ -578,200 +795,116 @@ Late Aircraft
 Unknown
 ```
 
-The classification is based on the delay component with the highest value.
-
-This feature directly supports the root-cause analysis objective.
+This feature directly supports delay root-cause analysis.
 
 ---
 
-## 11.3 TOTAL_CAUSE_DELAY
+# 15. TOTAL_CAUSE_DELAY
 
-The individual delay components are summed:
+The five delay components are summed:
 
-```text
-CARRIER_DELAY
-+
-WEATHER_DELAY
-+
-NAS_DELAY
-+
-SECURITY_DELAY
-+
-LATE_AIRCRAFT_DELAY
+```python
+df = df.withColumn(
+    "TOTAL_CAUSE_DELAY",
+    F.coalesce(F.col("CARRIER_DELAY"), F.lit(0)) +
+    F.coalesce(F.col("WEATHER_DELAY"), F.lit(0)) +
+    F.coalesce(F.col("NAS_DELAY"), F.lit(0)) +
+    F.coalesce(F.col("SECURITY_DELAY"), F.lit(0)) +
+    F.coalesce(F.col("LATE_AIRCRAFT_DELAY"), F.lit(0))
+)
 ```
 
-The result is stored in:
-
-```text
-TOTAL_CAUSE_DELAY
-```
-
-This provides an overall measure of delay attributed to identified causes.
+The resulting column represents the total delay attributed to the identified delay-cause components.
 
 ---
 
-# 12. Gold Dataset Main Columns
+# 16. Gold Layer Storage
 
-The Gold dataset contains the original flight attributes plus analytical features.
+The Gold dataset is stored as Parquet and partitioned by year:
 
-### Flight Identification
-
-```text
-FL_DATE
-OP_CARRIER
-OP_CARRIER_FL_NUM
+```python
+df.write \
+    .mode("overwrite") \
+    .partitionBy("YEAR") \
+    .parquet(GOLD_PATH)
 ```
 
-These identify the date, airline, and flight number.
-
-### Airport Information
+Output:
 
 ```text
-ORIGIN
-DEST
-```
-
-These identify the departure and destination airports.
-
-They support airport and route analysis.
-
-### Scheduled and Actual Times
-
-```text
-CRS_DEP_TIME
-DEP_TIME
-CRS_ARR_TIME
-ARR_TIME
-```
-
-These support time-based analysis and operational performance analysis.
-
-### Delay Metrics
-
-```text
-DEP_DELAY
-ARR_DELAY
-```
-
-These are the main delay measures.
-
-### Operational Metrics
-
-```text
-TAXI_OUT
-TAXI_IN
-AIR_TIME
-DISTANCE
-```
-
-These help analyze flight efficiency and operational performance.
-
-### Delay Causes
-
-```text
-CARRIER_DELAY
-WEATHER_DELAY
-NAS_DELAY
-SECURITY_DELAY
-LATE_AIRCRAFT_DELAY
-```
-
-These support root-cause analysis.
-
-### Analytical Features
-
-```text
-YEAR
-MONTH
-DAY
-DAY_OF_WEEK
-DEP_HOUR
-DEP_TIME_BUCKET
-ROUTE
-HAUL_TYPE
-IS_DELAYED
-OTP_FLAG
-DELAY_SEVERITY
-DELAY_CAUSE
-TOTAL_CAUSE_DELAY
-```
-
-These features are used directly for analytical reporting and dashboard development.
-
----
-
-# 13. Dimensional Modeling
-
-The Gold layer is transformed into a Star Schema.
-
-The purpose of dimensional modeling is to separate:
-
-* Business events and measurable values
-* Descriptive attributes used to analyze those events
-
-The resulting model consists of one central fact table surrounded by dimension tables.
-
----
-
-# 14. Star Schema
-
-```text
-                         +----------------+
-                         |    Dim_Date    |
-                         |----------------|
-                         | DateKey        |
-                         | FL_DATE        |
-                         | Year           |
-                         | Month          |
-                         | Day            |
-                         | DayOfWeek      |
-                         | IsWeekend      |
-                         +-------+--------+
-                                 |
-                                 |
-+----------------+       +-------+--------+       +----------------+
-|  Dim_Airline   |       |  Fact_Flight   |       |   Dim_Route    |
-|----------------|       |----------------|       |----------------|
-| CarrierKey     |------>| DateKey        |<------| RouteKey       |
-| OP_CARRIER     |       | CarrierKey     |       | ROUTE          |
-+----------------+       | RouteKey       |       | DISTANCE       |
-                         | CauseKey       |       | HAUL_TYPE      |
-                         | ORIGIN         |       +----------------+
-                         | DEST           |
-                         | DEP_DELAY      |
-                         | ARR_DELAY      |
-                         | DISTANCE       |
-                         | AIR_TIME       |
-                         | IS_DELAYED     |
-                         | OTP_FLAG       |
-                         | TOTAL_CAUSE_DELAY
-                         +-------+--------+
-                                 |
-                                 |
-                         +-------+--------+
-                         | Dim_DelayCause|
-                         |----------------|
-                         | CauseKey       |
-                         | DELAY_CAUSE    |
-                         +----------------+
-
-                         +----------------+
-                         |  Dim_Airport   |
-                         |----------------|
-                         | AirportKey     |
-                         | AIRPORT        |
-                         +----------------+
+Gold/flight_facts/
 ```
 
 ---
 
-# 15. Dimension Tables
+# 17. Dimensional Modeling
 
-## 15.1 Dim_Date
+After creating the analytical Gold layer, the data is transformed into a Star Schema.
 
-The date dimension is generated from the distinct flight dates.
+The model consists of:
 
-Columns:
+```text
+                    Dim_Date
+                       |
+                       |
+Dim_Airline ---- Fact_Flight ---- Dim_Route
+                       |
+                       |
+                Dim_DelayCause
+```
+
+The airport information is also represented through the airport dimension.
+
+The main model components are:
+
+```text
+Dim_Date
+Dim_Airline
+Dim_Airport
+Dim_Route
+Dim_DelayCause
+Fact_Flight
+```
+
+---
+
+# 18. Dim_Date
+
+The date dimension starts from the distinct flight dates:
+
+```python
+dim_date = df.select("FL_DATE").distinct()
+```
+
+A surrogate key is generated:
+
+```python
+w = Window.orderBy("FL_DATE")
+
+dim_date = dim_date.withColumn(
+    "DateKey",
+    F.row_number().over(w)
+)
+```
+
+Additional date attributes are generated:
+
+```python
+dim_date = dim_date \
+    .withColumn("Year", F.year("FL_DATE")) \
+    .withColumn("Month", F.month("FL_DATE")) \
+    .withColumn("Day", F.dayofmonth("FL_DATE")) \
+    .withColumn("DayOfWeek", F.dayofweek("FL_DATE")) \
+    .withColumn(
+        "IsWeekend",
+        F.when(
+            F.dayofweek("FL_DATE").isin(1, 7),
+            1
+        ).otherwise(0)
+    )
+```
+
+The dimension contains:
 
 ```text
 DateKey
@@ -783,72 +916,96 @@ DayOfWeek
 IsWeekend
 ```
 
-### Why these columns?
-
-`DateKey` is a surrogate key used to identify the date dimension record.
-
-`FL_DATE` represents the actual flight date.
-
-`Year` supports yearly trend analysis.
-
-`Month` supports monthly and seasonal analysis.
-
-`Day` supports daily analysis.
-
-`DayOfWeek` supports weekday pattern analysis.
-
-`IsWeekend` allows comparison between weekdays and weekends.
-
 ---
 
-## 15.2 Dim_Airline
+# 19. Dim_Airline
 
-Columns:
+The airline dimension is created from unique operating carriers:
+
+```python
+dim_airline = df.select(
+    "OP_CARRIER"
+).distinct()
+```
+
+A surrogate key is generated:
+
+```python
+w = Window.orderBy("OP_CARRIER")
+
+dim_airline = dim_airline.withColumn(
+    "CarrierKey",
+    F.row_number().over(w)
+)
+```
+
+The dimension contains:
 
 ```text
 CarrierKey
 OP_CARRIER
 ```
 
-`CarrierKey` is the surrogate key.
-
-`OP_CARRIER` identifies the operating airline.
-
-This dimension supports airline performance evaluation.
-
 ---
 
-## 15.3 Dim_Airport
+# 20. Dim_Airport
 
-The airport dimension combines airports appearing in both:
-
-```text
-ORIGIN
-DEST
-```
-
-The `union()` operation combines both sets of airport codes.
-
-Duplicates are then removed using:
+The airport dimension combines airports appearing as either origin or destination.
 
 ```python
-.distinct()
+airports = df.select(
+    F.col("ORIGIN").alias("AIRPORT")
+).union(
+    df.select(
+        F.col("DEST").alias("AIRPORT")
+    )
+).distinct()
 ```
 
-Columns:
+A surrogate key is generated:
+
+```python
+w = Window.orderBy("AIRPORT")
+
+dim_airport = airports.withColumn(
+    "AirportKey",
+    F.row_number().over(w)
+)
+```
+
+The dimension contains:
 
 ```text
 AirportKey
 AIRPORT
 ```
 
-This dimension supports airport traffic and congestion analysis.
-
 ---
 
-## 15.4 Dim_Route
+# 21. Dim_Route
 
-Columns:
+The route dimension is created from unique route combinations:
+
+```python
+dim_route = df.select(
+    "ROUTE",
+    "DISTANCE",
+    "HAUL_TYPE"
+).distinct()
+```
+
+A surrogate key is generated:
+
+```python
+w = Window.orderBy("ROUTE")
+
+dim_route = dim_route.withColumn(
+    "RouteKey",
+    F.row_number().over(w)
+)
+```
+
+The dimension contains:
 
 ```text
 RouteKey
@@ -857,324 +1014,261 @@ DISTANCE
 HAUL_TYPE
 ```
 
-`RouteKey` is the surrogate key.
-
-`ROUTE` identifies the flight route.
-
-`DISTANCE` represents the distance between origin and destination.
-
-`HAUL_TYPE` categorizes the route as short, medium, or long haul.
-
-This dimension supports route performance analysis.
-
 ---
 
-## 15.5 Dim_DelayCause
+# 22. Dim_DelayCause
 
-Columns:
+The delay-cause dimension contains the distinct delay-cause categories:
+
+```python
+dim_cause = df.select(
+    "DELAY_CAUSE"
+).distinct()
+```
+
+A surrogate key is generated:
+
+```python
+w = Window.orderBy("DELAY_CAUSE")
+
+dim_cause = dim_cause.withColumn(
+    "CauseKey",
+    F.row_number().over(w)
+)
+```
+
+The dimension contains:
 
 ```text
 CauseKey
 DELAY_CAUSE
 ```
 
-`CauseKey` is the surrogate key.
-
-`DELAY_CAUSE` represents the dominant cause of delay.
-
-This dimension supports root-cause analysis.
-
 ---
 
-# 16. Surrogate Keys
+# 23. Fact_Flight
 
-Surrogate keys are generated for each dimension using Spark's `row_number()` function.
+The fact table contains flight-level analytical measurements and foreign keys to the dimensions.
 
-Examples:
+The selected source attributes are:
 
-```text
-DateKey
-CarrierKey
-AirportKey
-RouteKey
-CauseKey
+```python
+fact = df.select(
+    "FL_DATE",
+    "OP_CARRIER",
+    "ORIGIN",
+    "DEST",
+    "ROUTE",
+    "DELAY_CAUSE",
+    "DEP_DELAY",
+    "ARR_DELAY",
+    "DISTANCE",
+    "AIR_TIME",
+    "IS_DELAYED",
+    "OTP_FLAG",
+    "TOTAL_CAUSE_DELAY"
+)
 ```
 
-The surrogate keys provide unique numeric identifiers for dimension records.
+The dimension keys are selected before joining:
 
-They are used to connect the fact table with the dimensions.
+```python
+dim_date = dim_date.select(
+    "FL_DATE",
+    "DateKey"
+)
 
----
+dim_airline = dim_airline.select(
+    "OP_CARRIER",
+    "CarrierKey"
+)
 
-# 17. Fact Table
+dim_airport = dim_airport.select(
+    "AIRPORT",
+    "AirportKey"
+)
 
-The central table is:
+dim_route = dim_route.select(
+    "ROUTE",
+    "RouteKey"
+)
 
-```text
-Fact_Flight
+dim_cause = dim_cause.select(
+    "DELAY_CAUSE",
+    "CauseKey"
+)
 ```
 
-It represents individual flight events.
-
-The fact table contains foreign keys referencing the dimensions and measurable analytical attributes.
-
-Main columns:
-
-```text
-DateKey
-CarrierKey
-RouteKey
-CauseKey
-ORIGIN
-DEST
-DEP_DELAY
-ARR_DELAY
-DISTANCE
-AIR_TIME
-IS_DELAYED
-OTP_FLAG
-TOTAL_CAUSE_DELAY
-```
-
----
-
-# 18. Fact Table Design
-
-The fact table was designed around the business event:
-
-```text
-One operated flight
-```
-
-Each row represents one operated flight.
-
-The fact table contains:
-
-### Foreign Keys
-
-```text
-DateKey
-CarrierKey
-RouteKey
-CauseKey
-```
-
-These connect the fact table to the dimension tables.
-
-### Measures
-
-```text
-DEP_DELAY
-ARR_DELAY
-DISTANCE
-AIR_TIME
-TOTAL_CAUSE_DELAY
-```
-
-These are numerical values that can be aggregated and analyzed.
-
-### Flags
-
-```text
-IS_DELAYED
-OTP_FLAG
-```
-
-These support delay-rate and OTP calculations.
-
-### Airport Attributes
-
-```text
-ORIGIN
-DEST
-```
-
-These support airport-level analysis.
-
----
-
-# 19. Joining Fact and Dimensions
-
-The dimension keys are added to the fact table by joining the fact data with the dimension tables.
-
-Example:
+The dimension keys are then joined to the fact data:
 
 ```python
 fact = fact \
-    .join(dim_date, "FL_DATE", "left") \
-    .join(dim_airline, "OP_CARRIER", "left") \
-    .join(dim_route, "ROUTE", "left") \
-    .join(dim_cause, "DELAY_CAUSE", "left")
+    .join(
+        dim_date,
+        "FL_DATE",
+        "left"
+    ) \
+    .join(
+        dim_airline,
+        "OP_CARRIER",
+        "left"
+    ) \
+    .join(
+        dim_route,
+        "ROUTE",
+        "left"
+    ) \
+    .join(
+        dim_cause,
+        "DELAY_CAUSE",
+        "left"
+    )
 ```
 
-A `LEFT JOIN` is used so that every flight record from the fact dataset is preserved even if a corresponding dimension record is missing.
+A left join is used so that all flight records from the fact dataset are preserved even if a corresponding dimension key cannot be found.
 
-The dimension keys are then selected into the final fact table.
+The final fact table contains the dimension keys and analytical measures:
 
----
-
-# 20. Power BI Integration
-
-The Star Schema can be connected to Power BI for visualization and business intelligence.
-
-The model enables Power BI to analyze flight performance across multiple dimensions.
-
-Recommended relationships include:
-
-```text
-Dim_Date[DateKey]
-        |
-        v
-Fact_Flight[DateKey]
+```python
+fact_final = fact.select(
+    "DateKey",
+    "CarrierKey",
+    "RouteKey",
+    "CauseKey",
+    "ORIGIN",
+    "DEST",
+    "DEP_DELAY",
+    "ARR_DELAY",
+    "DISTANCE",
+    "AIR_TIME",
+    "IS_DELAYED",
+    "OTP_FLAG",
+    "TOTAL_CAUSE_DELAY"
+)
 ```
 
-```text
-Dim_Airline[CarrierKey]
-        |
-        v
-Fact_Flight[CarrierKey]
-```
+The final fact table is stored as Parquet:
 
-```text
-Dim_Route[RouteKey]
-        |
-        v
-Fact_Flight[RouteKey]
-```
-
-```text
-Dim_DelayCause[CauseKey]
-        |
-        v
-Fact_Flight[CauseKey]
-```
-
-The dimension tables act as the descriptive side of the model, while the fact table contains the measurable flight events.
-
----
-
-# 21. Power BI Analytical Use Cases
-
-## Flight Delay Analysis
-
-Possible KPIs:
-
-* Total Flights
-* Delayed Flights
-* Delay Rate
-* Average Arrival Delay
-* Average Departure Delay
-* Maximum Delay
-
-## Airline Performance
-
-Possible analysis:
-
-* OTP by airline
-* Delay rate by airline
-* Average delay by airline
-* Number of delayed flights by airline
-
-## Route Performance
-
-Possible analysis:
-
-* Most delayed routes
-* Most reliable routes
-* Average delay by route
-* Delay rate by route
-* Distance vs delay
-
-## Airport Congestion
-
-Possible analysis:
-
-* Flights by airport
-* Delays by airport
-* Average delay by airport
-* Airport delay rate
-
-## Time-Based Analysis
-
-Possible analysis:
-
-* Delay trend by year
-* Delay trend by month
-* Delay by day of week
-* Delay by departure hour
-* Delay by departure time bucket
-* Weekend vs weekday delays
-
-## Root Cause Analysis
-
-Possible analysis:
-
-* Delays by cause
-* Total delay by cause
-* Carrier delay contribution
-* Weather delay contribution
-* NAS delay contribution
-* Security delay contribution
-* Late aircraft contribution
-
----
-
-# 22. Project Benefits
-
-The solution provides a structured analytical foundation for understanding flight delays and operational performance.
-
-The project can help stakeholders:
-
-* Identify airlines with poor punctuality
-* Identify problematic flight routes
-* Detect high-delay airports
-* Analyze airport traffic levels
-* Identify peak delay periods
-* Understand major operational delay causes
-* Compare airline performance
-* Compare route reliability
-* Support scheduling decisions
-* Support operational optimization
-* Build scalable Power BI dashboards
-
----
-
-# 23. End-to-End Pipeline
-
-```text
-Raw Flight Dataset
-        |
-        v
-Azure Data Lake Storage Gen2
-        |
-        v
-Bronze Layer
-        |
-        | Data Cleaning
-        v
-Silver Layer
-        |
-        | Feature Engineering
-        v
-Gold Layer
-        |
-        | Dimensional Modeling
-        v
-Star Schema
-        |
-        v
-Power BI
-        |
-        v
-Business Analytics
+```python
+fact_final.write \
+    .mode("overwrite") \
+    .parquet(
+        "abfss://gold@flightdatalakegen2.dfs.core.windows.net/fact_flight/"
+    )
 ```
 
 ---
 
-# 24. Project Structure
+# 24. Final Data Model
+
+The final dimensional model contains the following tables:
 
 ```text
-Flight-Delay-Analysis/
+                         Dim_Date
+                            |
+                            |
+                            v
+Dim_Airline ----------> Fact_Flight <---------- Dim_Route
+                            |
+                            |
+                            v
+                     Dim_DelayCause
+```
+
+The airport dimension is maintained separately for airport-level analytical modeling.
+
+### Dimensions
+
+```text
+Dim_Date
+- DateKey
+- FL_DATE
+- Year
+- Month
+- Day
+- DayOfWeek
+- IsWeekend
+```
+
+```text
+Dim_Airline
+- CarrierKey
+- OP_CARRIER
+```
+
+```text
+Dim_Airport
+- AirportKey
+- AIRPORT
+```
+
+```text
+Dim_Route
+- RouteKey
+- ROUTE
+- DISTANCE
+- HAUL_TYPE
+```
+
+```text
+Dim_DelayCause
+- CauseKey
+- DELAY_CAUSE
+```
+
+### Fact
+
+```text
+Fact_Flight
+- DateKey
+- CarrierKey
+- RouteKey
+- CauseKey
+- ORIGIN
+- DEST
+- DEP_DELAY
+- ARR_DELAY
+- DISTANCE
+- AIR_TIME
+- IS_DELAYED
+- OTP_FLAG
+- TOTAL_CAUSE_DELAY
+```
+
+---
+
+# 25. Project Outcomes
+
+The implemented solution provides:
+
+- Raw flight data ingestion
+- Data cleaning and quality control
+- Duplicate removal
+- Operated and cancelled flight separation
+- Data standardization
+- Time-based feature engineering
+- Departure time classification
+- Delay classification
+- Delay severity classification
+- Route creation
+- Flight distance classification
+- Delay cause classification
+- Total cause delay calculation
+- Analytical Gold layer
+- Date dimension
+- Airline dimension
+- Airport dimension
+- Route dimension
+- Delay-cause dimension
+- Flight fact table
+- Star Schema dimensional model
+
+---
+
+# 26. Repository Structure
+
+```text
+Flight-Delay-Data-Engineering/
 │
 ├── README.md
 │
@@ -1201,5 +1295,12 @@ Flight-Delay-Analysis/
     └── Flight_Delay_Analysis_Presentation
 ```
 
+---
 
+# 27. Conclusion
 
+This project implements an end-to-end flight data engineering pipeline using Azure Data Lake Storage Gen2, Azure Synapse Analytics, and PySpark.
+
+The pipeline transforms raw historical flight records through Bronze, Silver, and Gold layers, applies data quality and analytical transformations, and finally organizes the data into a Star Schema consisting of fact and dimension tables.
+
+The resulting analytical data model provides a structured foundation for studying flight delays, airline performance, route performance, airport activity, time-based delay patterns, and delay causes.
