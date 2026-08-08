@@ -92,16 +92,17 @@ Analyze the major categories of flight delays:
 
 ---
 
-# 3. Technology Stack
+# 3. Technology Stack:
 
-- Python
-- PySpark
-- Apache Spark
-- Azure Synapse Analytics
-- Azure Data Lake Storage Gen2
-- CSV
-- Parquet
-- GitHub
+- **Cloud Platform:** Microsoft Azure
+- **Data Lake:** Azure Data Lake Storage Gen2 (ADLS Gen2)
+- **Data Processing:** Azure Synapse Analytics
+- **Processing Engine:** Apache Spark / PySpark
+- **Storage Format:** CSV and Parquet
+- **Data Architecture:** Medallion Architecture (Bronze → Silver → Gold)
+- **Data Modeling:** Star Schema
+- **Programming Language:** Python / PySpark
+- **Visualization & Analytics:** Power BI
 
 ---
 
@@ -111,35 +112,40 @@ The project follows a Medallion Architecture.
 
 ```text
 Raw Flight Data
-       |
-       v
-+------------------+
-| Bronze Layer     |
-| Raw CSV Data     |
-+------------------+
-       |
-       | Cleaning
-       | Standardization
-       v
-+------------------+
-| Silver Layer     |
-| Operated Flights |
-+------------------+
-       |
-       | Feature Engineering
-       | Business Transformations
-       v
-+------------------+
-| Gold Layer       |
-| Analytical Data  |
-+------------------+
-       |
-       | Dimensional Modeling
-       v
-+------------------+
-| Star Schema      |
-| Fact + Dimensions|
-+------------------+
+      │
+      ▼
+┌───────────────┐
+│    Bronze     │
+│ Raw CSV Data  │
+└───────┬───────┘
+        │
+        ▼
+┌───────────────┐
+│    Silver     │
+│ Cleaned Data  │
+│ Operated      │
+│ Flights       │
+└───────┬───────┘
+        │
+        ▼
+┌────────────────────┐
+│       Gold         │
+│ Analytical Dataset │
+│ Feature Engineering│
+└─────────┬──────────┘
+          │
+          ▼
+┌─────────────────────────┐
+│   Dimensional Modeling  │
+│                         │
+│ Dim_Date                │
+│ Dim_Airline             │
+│ Dim_Airport             │
+│ Dim_Route               │
+│ Dim_DelayCause          │
+│ Fact_Flight             │
+└─────────────────────────┘
+
 ```
 
 ---
@@ -1272,27 +1278,11 @@ Flight-Delay-Data-Engineering/
 │
 ├── README.md
 │
-├── Silver/
-│   └── operated/
+├── Silver.ipynb
+├── Gold_Transformation.ipynb
+├── Modeling.ipynb
 │
-├── Gold/
-│   └── flight_facts/
-│
-├── Modeling/
-│   ├── dim_date/
-│   ├── dim_airline/
-│   ├── dim_airport/
-│   ├── dim_route/
-│   ├── dim_delaycause/
-│   └── fact_flight/
-│
-├── Notebooks/
-│   ├── Silver
-│   ├── Gold_Transformation
-│   └── Modeling
-│
-└── Presentation/
-    └── Flight_Delay_Analysis_Presentation
+└── Flight Data Engineering & Analytics Platform.pdf
 ```
 
 ---
